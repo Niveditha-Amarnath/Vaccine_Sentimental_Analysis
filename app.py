@@ -2,7 +2,8 @@ import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-
+import plotly.io as pio
+import streamlit.components.v1 as components
 from predict_multitask import predict_all
 from xai_explainer import explain_sentiment
 from prediction_logger import save_prediction
@@ -14,82 +15,217 @@ st.set_page_config(
     page_icon="💉",
     layout="wide"
 )
+# ---------------- GLOBAL PLOTLY THEME ----------------
 
+pastel_colors = [
+    "#B8C0FF",
+    "#E0B3FF",
+    "#FFB6D9",
+    "#C7D2FE",
+    "#F0ABFC",
+    "#FDB4CF"
+]
+
+custom_template = {
+    "layout": {
+        "paper_bgcolor": "rgba(20,22,34,0.95)",
+        "plot_bgcolor": "rgba(20,22,34,0.95)",
+        "font": {
+            "color": "#F3F4FF",
+            "family": "Arial",
+            "size": 18
+        },
+        "title": {
+            "font": {
+                "color": "#E0B3FF",
+                "size": 28
+            },
+            "x": 0.03
+        },
+        "legend": {
+            "font": {"size": 17, "color": "#F3F4FF"}
+        },
+        "xaxis": {
+            "title_font": {"size": 18},
+            "tickfont": {"size": 16},
+            "gridcolor": "rgba(255,255,255,0.10)",
+            "zerolinecolor": "rgba(255,255,255,0.10)"
+        },
+        "yaxis": {
+            "title_font": {"size": 18},
+            "tickfont": {"size": 16},
+            "gridcolor": "rgba(255,255,255,0.10)",
+            "zerolinecolor": "rgba(255,255,255,0.10)"
+        },
+        "colorway": pastel_colors,
+        "margin": {"l": 60, "r": 40, "t": 80, "b": 60}
+    }
+}
+
+
+pio.templates["pastel_dark"] = custom_template
+pio.templates.default = "pastel_dark"
+def style_bar_chart(fig, height=460):
+    fig.update_layout(
+        template="pastel_dark",
+        height=height,
+        title_font_size=28,
+        font=dict(size=18, color="#F3F4FF"),
+        legend=dict(font=dict(size=17)),
+        margin=dict(l=60, r=40, t=80, b=70)
+    )
+
+    fig.update_xaxes(tickfont=dict(size=16), title_font=dict(size=18), showgrid=True)
+    fig.update_yaxes(tickfont=dict(size=16), title_font=dict(size=18), showgrid=True)
+
+    
+    return fig
+
+
+def style_pie_chart(fig, height=460):
+    fig.update_layout(
+        template="pastel_dark",
+        height=height,
+        title_font_size=28,
+        font=dict(size=18, color="#F3F4FF"),
+        legend=dict(font=dict(size=17)),
+        margin=dict(l=40, r=40, t=80, b=40)
+    )
+
+    fig.update_traces(
+        textposition="inside",
+        textinfo="percent+label",
+        textfont_size=18,
+        pull=[0.04] * len(fig.data[0].labels),
+        marker_line_width=2,
+        marker_line_color="rgba(255,255,255,0.4)"
+    )
+
+    return fig
 # ---------------- THEME CSS ----------------
 
 st.markdown("""
 <style>
+
 .stApp {
-    background: linear-gradient(135deg, #F8FCFF 0%, #EEF9FA 100%);
-    color: #0B1F3A;
+    background: linear-gradient(135deg, #05060A 0%, #0B0D17 45%, #13111C 100%);
+    color: #F3F4FF;
 }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #071B3A 0%, #0B3C5D 100%);
+    background: linear-gradient(180deg, #090B12 0%, #161224 100%);
+    border-right: 1px solid rgba(255,255,255,0.08);
 }
 
 section[data-testid="stSidebar"] * {
-    color: white !important;
+    color: #F8F4FF !important;
 }
 
-h1, h2, h3 {
-    color: #0B3C5D;
-    font-weight: 800;
+h1 {
+    color: #C7D2FE !important;
+    font-weight: 900 !important;
+}
+
+h2, h3 {
+    color: #E0B3FF !important;
+    font-weight: 800 !important;
+}
+
+p, label, div {
+    color: #F3F4FF;
 }
 
 textarea {
-    border: 1.5px solid #00B4B4 !important;
-    border-radius: 12px !important;
+    background-color: #151825 !important;
+    color: #F3F4FF !important;
+    border: 1.5px solid #D8B4FE !important;
+    border-radius: 16px !important;
+}
+
+input {
+    background-color: #151825 !important;
+    color: white !important;
 }
 
 .stButton button {
-    background: linear-gradient(135deg, #00B4B4, #0B77BD);
-    color: white;
+    background: linear-gradient(135deg, #B8C0FF, #E0B3FF, #FFB6D9);
+    color: #111 !important;
     border: none;
-    border-radius: 10px;
-    padding: 0.65rem 1.2rem;
-    font-weight: 700;
+    border-radius: 14px;
+    padding: 0.7rem 1.3rem;
+    font-weight: 800;
+    box-shadow: 0px 0px 20px rgba(224,179,255,0.18);
+    transition: all 0.3s ease;
 }
 
 .stButton button:hover {
-    background: linear-gradient(135deg, #0B3C5D, #00B4B4);
-    color: white;
+    transform: scale(1.03);
+    background: linear-gradient(135deg, #C7D2FE, #F0ABFC, #FDB4CF);
+    color: black !important;
 }
 
 div[data-testid="stMetric"] {
-    background: white;
-    border-radius: 16px;
-    padding: 20px;
-    border: 1px solid #D6EEF0;
-    box-shadow: 0px 8px 24px rgba(11, 60, 93, 0.08);
+    background: rgba(22, 25, 38, 0.95);
+    border-radius: 20px;
+    padding: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow:
+        0px 0px 18px rgba(184,192,255,0.10),
+        0px 0px 22px rgba(255,182,217,0.08);
 }
 
 div[data-testid="stMetricLabel"] {
-    color: #0B3C5D !important;
+    color: #F0ABFC !important;
     font-weight: 700;
 }
 
 div[data-testid="stMetricValue"] {
-    color: #0B77BD !important;
-    font-weight: 800;
+    color: #B8C0FF !important;
+    font-weight: 900;
 }
 
-div[data-testid="stAlert"] {
-    border-radius: 12px;
+div[data-testid="stDataFrame"] {
+    background: rgba(20,22,34,0.95);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 .js-plotly-plot {
-    border-radius: 16px;
-    background: white;
-    padding: 10px;
-    box-shadow: 0px 8px 24px rgba(11, 60, 93, 0.06);
+    background: rgba(20,22,34,0.96);
+    border-radius: 18px;
+    padding: 12px;
+    box-shadow:
+        0px 0px 18px rgba(184,192,255,0.08),
+        0px 0px 22px rgba(255,182,217,0.05);
+}
+
+div[data-testid="stAlert"] {
+    border-radius: 14px;
 }
 
 hr {
     border: none;
     height: 1px;
-    background: #D6EEF0;
+    background: rgba(255,255,255,0.08);
 }
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #11131B;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #B8C0FF, #E0B3FF, #FFB6D9);
+    border-radius: 10px;
+}
+
+footer {
+    visibility: hidden;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,37 +254,31 @@ page = st.sidebar.radio(
         "Project Overview"
     ]
 )
-
 # ---------------- TITLE HEADER ----------------
 
-st.markdown("""
-<div style="
-    background: linear-gradient(90deg, #071B3A 0%, #0B3C5D 60%, #00B4B4 100%);
-    padding: 22px;
-    border-radius: 16px;
-    margin-bottom: 25px;
-    box-shadow: 0px 8px 28px rgba(0,0,0,0.18);
-">
-<h1 style="
-    color: white;
-    margin-bottom: 5px;
-    font-size: 46px;
-    font-weight: 800;
-">
-💉 M-VaxSentXAI
-</h1>
-<p style="
-    color: #D9F8F8;
-    font-size: 20px;
-    margin-top: 0px;
-">
-Multilingual Vaccine Sentiment & Misinformation Analysis using Explainable AI
-</p>
-</div>
-""", unsafe_allow_html=True)
+components.html(
+    """
+    <div style="
+        background: linear-gradient(90deg, #11131B 0%, #1A1630 45%, #2B1F3F 100%);
+        padding: 26px;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0px 0px 24px rgba(184,192,255,0.10), 0px 0px 30px rgba(255,182,217,0.08);
+        font-family: Arial, sans-serif;
+    ">
+        <h1 style="color:#C7D2FE; margin-bottom:8px; font-size:52px; font-weight:900;">
+            💉 M-VaxSentXAI
+        </h1>
 
-# ---------------- SINGLE TEXT ANALYSIS ----------------
+        <p style="color:#F5D0FE; font-size:21px; margin-top:0px;">
+            Multilingual Vaccine Sentiment & Misinformation Analysis using Explainable AI
+        </p>
+    </div>
+    """,
+    height=180
+)
 
+#-------------------single text analysis------------#
 if page == "Single Text Analysis":
 
     st.header("🔍 Single Text Analysis")
@@ -213,14 +343,17 @@ if page == "Single Text Analysis":
                 conf_df = pd.DataFrame(confidence_data)
 
                 fig = px.bar(
-                    conf_df,
-                    x="Task",
-                    y="Confidence",
-                    title="Prediction Confidence Scores",
-                    text="Confidence"
-                )
-
+    conf_df,
+    x="Task",
+    y="Confidence",
+    title="Prediction Confidence Scores",
+    text="Confidence",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+                fig = style_bar_chart(fig)
                 st.plotly_chart(fig, use_container_width=True)
+                
 
             st.markdown("---")
 
@@ -233,15 +366,19 @@ if page == "Single Text Analysis":
                     explanation,
                     columns=["Word", "Influence Score"]
                 )
-
                 fig = px.bar(
-                    xai_df,
-                    x="Word",
-                    y="Influence Score",
-                    title="LIME Word Importance"
-                )
-
+        xai_df,
+        x="Word",
+        y="Influence Score",
+        title="LIME Word Importance",
+        template="pastel_dark",
+        color_discrete_sequence=pastel_colors
+    )
+                
+                fig = style_bar_chart(fig)
                 st.plotly_chart(fig, use_container_width=True)
+                
+            
                 st.dataframe(xai_df)
 
             except Exception as e:
@@ -278,28 +415,32 @@ elif page == "Dataset Dashboard":
             sentiment_counts = df["label"].value_counts().reset_index()
             sentiment_counts.columns = ["Sentiment", "Count"]
 
-            fig = px.pie(
-                sentiment_counts,
-                names="Sentiment",
-                values="Count",
-                title="Sentiment Distribution"
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
+        fig = px.pie(
+            sentiment_counts,
+            names="Sentiment",
+            values="Count",
+            title="Sentiment Distribution",
+            template="pastel_dark",
+            color_discrete_sequence=pastel_colors)
+        fig = style_pie_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             emotion_counts = df["emotion"].value_counts().reset_index()
             emotion_counts.columns = ["Emotion", "Count"]
 
             fig = px.bar(
-                emotion_counts,
-                x="Emotion",
-                y="Count",
-                title="Emotion Distribution"
-            )
+    emotion_counts,
+    x="Emotion",
+    y="Count",
+    title="Emotion Distribution",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
 
+            fig = style_bar_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
-
+            
         col3, col4 = st.columns(2)
 
         with col3:
@@ -307,27 +448,37 @@ elif page == "Dataset Dashboard":
             misinfo_counts.columns = ["Misinformation", "Count"]
 
             fig = px.pie(
-                misinfo_counts,
-                names="Misinformation",
-                values="Count",
-                title="Misinformation Distribution"
-            )
-
+    misinfo_counts,
+    names="Misinformation",
+    values="Count",
+    title="Misinformation Distribution",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+            fig = style_pie_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
+            fig.update_traces(
+    textposition="inside",
+    textinfo="percent+label",
+    textfont_size=18,
+    pull=[0.04] * len(fig.data[0].labels)
+)
 
         with col4:
             topic_counts = df["topic"].value_counts().reset_index()
             topic_counts.columns = ["Topic", "Count"]
 
             fig = px.bar(
-                topic_counts,
-                x="Topic",
-                y="Count",
-                title="Topic Distribution"
-            )
-
+    topic_counts,
+    x="Topic",
+    y="Count",
+    title="Topic Distribution",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+            fig = style_bar_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
-
+            
         st.markdown("---")
 
         st.subheader("Region-wise Vaccine Sentiment")
@@ -347,14 +498,19 @@ elif page == "Dataset Dashboard":
         })
 
         fig = px.bar(
-            region_data,
-            x="State",
-            y=["Positive", "Negative", "Neutral"],
-            barmode="group",
-            title="State-wise Vaccine Sentiment Comparison"
-        )
+        region_data,
+        x="State",
+        y=["Positive", "Negative", "Neutral"],
+        barmode="group",
+        title="State-wise Vaccine Sentiment Comparison",
+        template="pastel_dark",
+        color_discrete_sequence=pastel_colors
+    )
 
+        fig = style_bar_chart(fig)
         st.plotly_chart(fig, use_container_width=True)
+        
+
 
         st.markdown("---")
 
@@ -414,26 +570,31 @@ elif page == "Live Monitor":
 
         with col1:
             fig = px.pie(
-                live_df,
-                names="Sentiment",
-                title="Live Sentiment Distribution"
-            )
-
+    live_df,
+    names="Sentiment",
+    title="Live Sentiment Distribution",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+            fig = style_pie_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
+
 
         with col2:
             misinfo_chart = live_df["Misinformation"].value_counts().reset_index()
             misinfo_chart.columns = ["Misinformation", "Count"]
 
             fig = px.bar(
-                misinfo_chart,
-                x="Misinformation",
-                y="Count",
-                title="Live Misinformation Alerts"
-            )
-
+    misinfo_chart,
+    x="Misinformation",
+    y="Count",
+    title="Live Misinformation Alerts",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+            fig = style_bar_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
-
+           
         col3, col4 = st.columns(2)
 
         with col3:
@@ -441,25 +602,32 @@ elif page == "Live Monitor":
             emotion_chart.columns = ["Emotion", "Count"]
 
             fig = px.bar(
-                emotion_chart,
-                x="Emotion",
-                y="Count",
-                title="Live Emotion Distribution"
-            )
+    emotion_chart,
+    x="Emotion",
+    y="Count",
+    title="Live Emotion Distribution",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
 
+            fig = style_bar_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
+            
+
 
         with col4:
             sarcasm_chart = live_df["Sarcasm"].value_counts().reset_index()
             sarcasm_chart.columns = ["Sarcasm", "Count"]
 
             fig = px.pie(
-                sarcasm_chart,
-                names="Sarcasm",
-                values="Count",
-                title="Sarcasm Detection Summary"
-            )
-
+    sarcasm_chart,
+    names="Sarcasm",
+    values="Count",
+    title="Sarcasm Detection Summary",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+            fig = style_pie_chart(fig)
             st.plotly_chart(fig, use_container_width=True)
 
         fake_count = (live_df["Misinformation"] == "Fake").sum()
@@ -491,8 +659,10 @@ elif page == "Model Evaluation":
 
     if os.path.exists(metrics_file):
         metrics_data = pd.read_csv(metrics_file)
+
     else:
         st.warning("evaluation_metrics.csv not found. Showing sample metrics.")
+
         metrics_data = pd.DataFrame({
             "Task": ["Sentiment", "Emotion", "Misinformation", "Topic"],
             "Accuracy": [0.91, 0.86, 0.88, 0.84],
@@ -501,38 +671,63 @@ elif page == "Model Evaluation":
             "F1-Score": [0.90, 0.85, 0.87, 0.83]
         })
 
-    st.subheader("Task-wise Performance")
+    st.subheader("📈 Task-wise Performance")
+
     st.dataframe(metrics_data)
 
     fig = px.bar(
-        metrics_data,
-        x="Task",
-        y=["Accuracy", "Precision", "Recall", "F1-Score"],
-        barmode="group",
-        title="Model Performance Comparison"
-    )
+    metrics_data,
+    x="Task",
+    y=["Accuracy", "Precision", "Recall", "F1-Score"],
+    barmode="group",
+    title="Model Performance Comparison",
+    template="pastel_dark",
+    color_discrete_sequence=pastel_colors
+)
+
+
+
+    fig = style_bar_chart(fig, height=420)
 
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
-    st.subheader("Confusion Matrices")
+    st.subheader("🧩 Confusion Matrices")
 
-    tasks = ["sentiment", "emotion", "misinformation", "topic"]
+    tasks = [
+        "sentiment",
+        "emotion",
+        "misinformation",
+        "topic"
+    ]
 
-    for task in tasks:
+    # Create 2-column layout
+    cols = st.columns(2)
+
+    for index, task in enumerate(tasks):
+
         image_path = f"outputs/confusion_matrices/{task}_confusion_matrix.png"
 
-        if os.path.exists(image_path):
-            st.image(image_path, caption=f"{task.capitalize()} Confusion Matrix")
-        else:
-            st.warning(f"{task.capitalize()} confusion matrix not found.")
+        with cols[index % 2]:
+
+            if os.path.exists(image_path):
+
+                st.image(
+                    image_path,
+                    caption=f"{task.capitalize()} Confusion Matrix",
+                    use_container_width=True
+                )
+
+            else:
+                st.warning(f"{task.capitalize()} confusion matrix not found.")
 
     st.markdown("---")
 
-    st.subheader("Baseline vs Proposed Model")
+    st.subheader("⚖️ Baseline vs Proposed Model")
 
     comparison_data = pd.DataFrame({
+
         "Model": [
             "TF-IDF + Logistic Regression",
             "TF-IDF + SVM",
@@ -540,6 +735,7 @@ elif page == "Model Evaluation":
             "BERT",
             "Proposed M-VaxSentXAI"
         ],
+
         "Context Understanding": [
             "Low",
             "Low",
@@ -547,6 +743,7 @@ elif page == "Model Evaluation":
             "High",
             "Very High"
         ],
+
         "Multilingual Support": [
             "Limited",
             "Limited",
@@ -554,6 +751,7 @@ elif page == "Model Evaluation":
             "Medium",
             "High"
         ],
+
         "Misinformation Detection": [
             "Basic",
             "Basic",
@@ -561,6 +759,7 @@ elif page == "Model Evaluation":
             "No",
             "Yes"
         ],
+
         "Explainability": [
             "Medium",
             "Medium",
@@ -573,13 +772,12 @@ elif page == "Model Evaluation":
     st.dataframe(comparison_data)
 
     st.markdown("""
-    ### Key Observation
+    ### 🔍 Key Observation
 
     The baseline model is lightweight and easy to run, while the proposed M-VaxSentXAI model is designed to overcome
     major research gaps such as multilingual limitations, misinformation detection, sarcasm/context handling,
     and lack of explainable AI.
     """)
-
 # ---------------- PREDICTION HISTORY ----------------
 
 elif page == "Prediction History":
@@ -881,20 +1079,20 @@ elif page == "Project Overview":
 
 st.markdown("---")
 
-st.markdown("""
-### ✅ Current System Capabilities
+# st.markdown("""
+# ### ✅ Current System Capabilities
 
-- Sentiment Analysis  
-- Emotion Detection  
-- Misinformation Detection  
-- Topic Classification  
-- Language Detection  
-- Code-Mixed Text Preprocessing  
-- Sarcasm Detection  
-- Confidence Score Visualization  
-- Explainable AI using LIME  
-- Dataset Dashboard  
-- Model Evaluation  
-- Prediction History  
-- Live Monitoring Simulation  
-""")
+# - Sentiment Analysis  
+# - Emotion Detection  
+# - Misinformation Detection  
+# - Topic Classification  
+# - Language Detection  
+# - Code-Mixed Text Preprocessing  
+# - Sarcasm Detection  
+# - Confidence Score Visualization  
+# - Explainable AI using LIME  
+# - Dataset Dashboard  
+# - Model Evaluation  
+# - Prediction History  
+# - Live Monitoring Simulation  
+# """)
